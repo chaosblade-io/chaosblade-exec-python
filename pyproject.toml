@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chaosblade-exec-python"
+version = "0.1.0"
+description = "ChaosBlade chaos experiment executor for Python applications"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+authors = [{name = "ChaosBlade Team"}]
+keywords = ["chaos", "engineering", "fault-injection", "testing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Testing",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = []
+
+[project.scripts]
+chaosblade-exec-python = "chaosblade.cli:cli_entry"
+
+[project.entry-points."chaosblade.plugins"]
+redis = "chaosblade.plugins.redis:RedisPlugin"
+http = "chaosblade.plugins.requests:RequestsPlugin"
+httpx = "chaosblade.plugins.httpx:HttpxPlugin"
+mysql = "chaosblade.plugins.mysql:MysqlPlugin"
+pymysql = "chaosblade.plugins.mysql:PyMysqlPlugin"
+grpc = "chaosblade.plugins.grpc:GrpcPlugin"
+kafka-producer = "chaosblade.plugins.kafka:KafkaProducerPlugin"
+kafka-consumer = "chaosblade.plugins.kafka:KafkaConsumerPlugin"
+sqlalchemy = "chaosblade.plugins.sqlalchemy:SqlalchemyPlugin"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "pytest-asyncio>=0.21"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chaosblade"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
