@@ -211,7 +211,6 @@ def cmd_detach(args: argparse.Namespace) -> int:
 
 def cmd_spec(args: argparse.Namespace) -> int:
     """Export chaosblade-python-spec-<version>.yaml."""
-    import yaml
     from chaosblade import __version__
     from chaosblade.bootstrap.plugin_loader import PluginLoader
     from chaosblade.common.center.manager_factory import ManagerFactory
@@ -222,6 +221,17 @@ def cmd_spec(args: argparse.Namespace) -> int:
     items: list[dict[str, Any]] = []
 
     for model_spec in manager.list_all():
+        # Compute matchers once per model (same for all actions)
+        matchers = [
+            {
+                "name": m.get_name(),
+                "desc": m.get_desc(),
+                "noArgs": m.no_args(),
+                "required": m.is_required(),
+            }
+            for m in model_spec.get_matcher_specs()
+        ]
+
         actions: list[dict[str, Any]] = []
         for action in model_spec.get_actions():
             action_flags = [
@@ -232,15 +242,6 @@ def cmd_spec(args: argparse.Namespace) -> int:
                     "required": f.is_required(),
                 }
                 for f in action.get_action_flags()
-            ]
-            matchers = [
-                {
-                    "name": m.get_name(),
-                    "desc": m.get_desc(),
-                    "noArgs": m.no_args(),
-                    "required": m.is_required(),
-                }
-                for m in model_spec.get_matcher_specs()
             ]
             action_entry: dict[str, Any] = {
                 "action": action.get_name(),
@@ -271,7 +272,8 @@ def cmd_spec(args: argparse.Namespace) -> int:
     }
 
     output_file = args.output or f"chaosblade-python-spec-{__version__}.yaml"
-    Path(output_file).write_text(yaml.dump(payload, allow_unicode=True, sort_keys=False))
+    # Use JSON (valid YAML subset) to avoid PyYAML dependency
+    Path(output_file).write_text(json.dumps(payload, ensure_ascii=False, indent=2))
     print(f"Exported spec to: {output_file}")
     return 0
 
