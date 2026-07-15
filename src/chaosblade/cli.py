@@ -6,6 +6,7 @@ Commands:
   status  - Show agent status
   attach  - Generate sitecustomize.py for auto-attach on process start
   detach  - Remove the sitecustomize.py hook
+  spec    - Export plugin spec YAML for chaosblade CLI
 """
 
 from __future__ import annotations
@@ -208,6 +209,73 @@ def cmd_detach(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_spec(args: argparse.Namespace) -> int:
+    """Export chaosblade-python-spec-<version>.yaml."""
+    import yaml
+    from chaosblade import __version__
+    from chaosblade.bootstrap.plugin_loader import PluginLoader
+    from chaosblade.common.center.manager_factory import ManagerFactory
+
+    PluginLoader.load_plugins()
+
+    manager = ManagerFactory.get_model_spec_manager()
+    items: list[dict[str, Any]] = []
+
+    for model_spec in manager.list_all():
+        actions: list[dict[str, Any]] = []
+        for action in model_spec.get_actions():
+            action_flags = [
+                {
+                    "name": f.get_name(),
+                    "desc": f.get_desc(),
+                    "noArgs": f.no_args(),
+                    "required": f.is_required(),
+                }
+                for f in action.get_action_flags()
+            ]
+            matchers = [
+                {
+                    "name": m.get_name(),
+                    "desc": m.get_desc(),
+                    "noArgs": m.no_args(),
+                    "required": m.is_required(),
+                }
+                for m in model_spec.get_matcher_specs()
+            ]
+            action_entry: dict[str, Any] = {
+                "action": action.get_name(),
+                "shortDesc": action.get_short_desc(),
+                "longDesc": action.get_long_desc(),
+            }
+            aliases = action.get_aliases()
+            if aliases:
+                action_entry["aliases"] = aliases
+            if matchers:
+                action_entry["matchers"] = matchers
+            if action_flags:
+                action_entry["flags"] = action_flags
+            actions.append(action_entry)
+
+        items.append({
+            "target": model_spec.get_target(),
+            "shortDesc": model_spec.get_short_desc(),
+            "longDesc": model_spec.get_long_desc(),
+            "scope": "host",
+            "actions": actions,
+        })
+
+    payload = {
+        "version": "v1",
+        "kind": "plugin",
+        "items": items,
+    }
+
+    output_file = args.output or f"chaosblade-python-spec-{__version__}.yaml"
+    Path(output_file).write_text(yaml.dump(payload, allow_unicode=True, sort_keys=False))
+    print(f"Exported spec to: {output_file}")
+    return 0
+
+
 def main() -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -247,6 +315,13 @@ def main() -> int:
         help="Directory containing sitecustomize.py"
     )
 
+    # spec command
+    spec_parser = subparsers.add_parser("spec", help="Export plugin spec YAML")
+    spec_parser.add_argument(
+        "--output", type=str, default=None,
+        help="Output file path (default: chaosblade-python-spec-<version>.yaml)"
+    )
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -258,6 +333,7 @@ def main() -> int:
         "status": cmd_status,
         "attach": cmd_attach,
         "detach": cmd_detach,
+        "spec": cmd_spec,
     }
 
     handler = commands.get(args.command)
