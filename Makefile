@@ -66,9 +66,11 @@ build:
 	rm -rf $(BUILD_TARGET_PKG_DIR)
 	mkdir -p $(PYTHON_LIB_DIR) $(BUILD_TARGET_YAML)
 	@echo "Installing python agent library into $(PYTHON_LIB_DIR)..."
-	$(PYTHON) -m pip install --target $(PYTHON_LIB_DIR) .
+	$(PYTHON) -m pip install --no-compile --target $(PYTHON_LIB_DIR) .
 	@echo "Exporting plugin spec to $(PYTHON_SPEC_FILE)..."
 	PYTHONPATH=$(PYTHON_LIB_DIR) $(PYTHON) -m chaosblade spec --output $(PYTHON_SPEC_FILE)
+	@echo "Removing bytecode cache from packaged library..."
+	find $(PYTHON_LIB_DIR) -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
 	@echo "Build complete: $(BUILD_TARGET_PKG_DIR)"
 
 # Build wheel + sdist (PyPI-style distribution artifacts)
