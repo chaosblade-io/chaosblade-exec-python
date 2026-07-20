@@ -6,6 +6,7 @@ __pycache__/
 
 # Python build / packaging
 build/
+build-target/
 dist/
 downloads/
 eggs/

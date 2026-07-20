@@ -13,16 +13,35 @@
 # limitations under the License.
 
 # ChaosBlade Python Executor Makefile
-.PHONY: install test test-cov lint build clean all help
+.PHONY: install test test-cov lint build wheel spec clean all help
 
-VERSION ?= 0.1.0
+# =============================================================================
+# Version configuration (aligned with chaosblade BLADE_VERSION)
+# =============================================================================
+DEFAULT_BLADE_VERSION := 1.8.0
+BLADE_VERSION ?= $(DEFAULT_BLADE_VERSION)
+
+# =============================================================================
+# Build-target layout (mirrors chaosblade-exec-jvm so chaosblade can `cp -R` it)
+#   build-target/chaosblade-<version>/lib/python   <- agent library
+#   build-target/chaosblade-<version>/yaml/*.yaml  <- plugin spec
+# =============================================================================
+BUILD_TARGET := build-target
+BUILD_TARGET_PKG_DIR := $(BUILD_TARGET)/chaosblade-$(BLADE_VERSION)
+BUILD_TARGET_LIB := $(BUILD_TARGET_PKG_DIR)/lib
+BUILD_TARGET_YAML := $(BUILD_TARGET_PKG_DIR)/yaml
+PYTHON_LIB_DIR := $(BUILD_TARGET_LIB)/python
+PYTHON_SPEC_FILE := $(BUILD_TARGET_YAML)/chaosblade-python-spec-$(BLADE_VERSION).yaml
+
+# Python interpreter (overridable, e.g. make build PYTHON=python3.11)
+PYTHON ?= python3
 
 # Default target
 all: install test build
 
 # Install in development mode
 install:
-	pip install -e ".[dev]"
+	$(PYTHON) -m pip install -e ".[dev]"
 
 # Run tests
 test:
@@ -35,19 +54,37 @@ test-cov:
 # Lint / type check
 lint:
 	@echo "Running syntax checks..."
-	python -m py_compile src/chaosblade/__init__.py
+	$(PYTHON) -m py_compile src/chaosblade/__init__.py src/chaosblade/cli.py
 	@echo "Checking imports..."
-	python -c "import chaosblade; print(f'OK: chaosblade v{chaosblade.__version__}')"
+	$(PYTHON) -c "import chaosblade; print(f'OK: chaosblade v{chaosblade.__version__}')"
 
-# Build wheel package
+# Build the full product into build-target/chaosblade-<version>/{lib,yaml}.
+# This layout mirrors chaosblade-exec-jvm; chaosblade's `python-agent` target
+# copies it verbatim into the final blade package.
 build:
-	@echo "Building wheel..."
-	python -m build --wheel
+	@echo "Building chaosblade python agent product (version: $(BLADE_VERSION))..."
+	rm -rf $(BUILD_TARGET_PKG_DIR)
+	mkdir -p $(PYTHON_LIB_DIR) $(BUILD_TARGET_YAML)
+	@echo "Installing python agent library into $(PYTHON_LIB_DIR)..."
+	$(PYTHON) -m pip install --target $(PYTHON_LIB_DIR) .
+	@echo "Exporting plugin spec to $(PYTHON_SPEC_FILE)..."
+	PYTHONPATH=$(PYTHON_LIB_DIR) $(PYTHON) -m chaosblade spec --output $(PYTHON_SPEC_FILE)
+	@echo "Build complete: $(BUILD_TARGET_PKG_DIR)"
+
+# Build wheel + sdist (PyPI-style distribution artifacts)
+wheel:
+	@echo "Building wheel and sdist..."
+	$(PYTHON) -m build
 	@echo "Build complete: dist/"
+
+# Export the plugin spec yaml only. Requires the package (and its entry_points)
+# to be importable, so run `make install` or `make build` first.
+spec:
+	$(PYTHON) -m chaosblade spec --output chaosblade-python-spec-$(BLADE_VERSION).yaml
 
 # Clean all build artifacts
 clean:
-	rm -rf build/ dist/ *.egg-info src/*.egg-info .pytest_cache htmlcov .coverage
+	rm -rf $(BUILD_TARGET) build/ dist/ *.egg-info src/*.egg-info .pytest_cache htmlcov .coverage
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@echo "Clean complete"
 
@@ -60,10 +97,13 @@ help:
 	@echo "  test      - Run test suite"
 	@echo "  test-cov  - Run tests with coverage report"
 	@echo "  lint      - Run syntax and import checks"
-	@echo "  build     - Build wheel package"
+	@echo "  build     - Build full product into build-target/chaosblade-<version>/{lib,yaml}"
+	@echo "  wheel     - Build wheel + sdist into dist/"
+	@echo "  spec      - Export plugin spec yaml (requires installed package)"
 	@echo "  clean     - Remove all build artifacts"
 	@echo "  all       - install + test + build (default)"
 	@echo "  help      - Display this help"
 	@echo ""
 	@echo "Environment variables:"
-	@echo "  VERSION   - Package version (default: $(VERSION))"
+	@echo "  BLADE_VERSION - Product version (default: $(DEFAULT_BLADE_VERSION))"
+	@echo "  PYTHON        - Python interpreter (default: python3)"

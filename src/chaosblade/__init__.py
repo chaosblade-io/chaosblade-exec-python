@@ -7,7 +7,7 @@ Public API:
     Injector        - Core injection engine
 """
 
-__version__ = "0.1.0"
+__version__ = "1.8.0"
 
 # Lazy imports to avoid circular dependencies
 
