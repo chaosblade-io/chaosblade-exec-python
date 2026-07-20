@@ -280,12 +280,14 @@ def cmd_spec(args: argparse.Namespace) -> int:
 
 def main() -> int:
     """Main CLI entry point."""
+    from chaosblade import __version__
+
     parser = argparse.ArgumentParser(
         prog="chaosblade-exec-python",
         description="ChaosBlade Python Agent - Chaos engineering for Python applications",
     )
     parser.add_argument(
-        "--version", action="version", version="%(prog)s 0.1.0"
+        "--version", action="version", version=f"%(prog)s {__version__}"
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -348,4 +350,8 @@ def main() -> int:
 
 def cli_entry() -> None:
     """Entry point for the console_scripts."""
+    sys.exit(main())
+
+
+if __name__ == "__main__":
     sys.exit(main())

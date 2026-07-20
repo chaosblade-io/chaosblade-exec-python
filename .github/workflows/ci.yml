@@ -20,6 +20,11 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Cancel superseded runs on the same ref/PR to avoid piling up in the queue
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -75,8 +80,19 @@ jobs:
           python-version: "3.12"
           cache: 'pip'
 
+      - name: Check License Header
+        uses: korandoru/hawkeye@v6
+
       - name: Install build tools
         run: pip install build hatchling
+
+      - name: Build full product (build-target layout)
+        run: |
+          make clean
+          make build BLADE_VERSION=1.8.0
+          test -f build-target/chaosblade-1.8.0/yaml/chaosblade-python-spec-1.8.0.yaml
+          test -d build-target/chaosblade-1.8.0/lib/python/chaosblade
+          echo "build-target layout verified"
 
       - name: Build wheel
         run: python -m build --wheel

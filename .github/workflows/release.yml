@@ -50,18 +50,35 @@ jobs:
           pip install -e ".[dev,test]"
           pytest tests/ -v --tb=short
 
+      - name: Build full product (build-target layout)
+        run: |
+          make clean
+          make build BLADE_VERSION=${RELEASE_VERSION}
+
       - name: Build wheel and sdist
         run: python -m build
 
-      - name: Verify wheel
+      - name: Verify build
         run: |
           pip install dist/*.whl
           python -c "import chaosblade; print(f'Version: {chaosblade.__version__}')"
+          test -f build-target/chaosblade-${RELEASE_VERSION}/yaml/chaosblade-python-spec-${RELEASE_VERSION}.yaml
+          echo "spec yaml verified"
+
+      - name: Create release package
+        run: |
+          mkdir -p release
+          cp -r build-target/* release/
+          cp dist/*.whl dist/*.tar.gz release/ 2>/dev/null || true
+          cd release
+          tar -czf chaosblade-python-${RELEASE_VERSION}.tar.gz chaosblade-${RELEASE_VERSION}
+          ls -la
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
+            release/chaosblade-python-${{ env.RELEASE_VERSION }}.tar.gz
             dist/*.whl
             dist/*.tar.gz
           generate_release_notes: true
