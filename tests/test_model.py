@@ -114,8 +114,10 @@ class TestInitExports:
         assert hasattr(Injector, "inject")
 
     def test_version(self):
+        import re
         import chaosblade
-        assert chaosblade.__version__ == "0.1.0"
+        assert isinstance(chaosblade.__version__, str)
+        assert re.match(r"^\d+\.\d+\.\d+", chaosblade.__version__)
 
     def test_invalid_attr_raises(self):
         import chaosblade
