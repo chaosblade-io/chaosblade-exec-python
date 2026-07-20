@@ -18,6 +18,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, e.g. 1.8.0 or 1.8.0-rc1 (used to tag the release)'
+        required: true
+        type: string
 
 jobs:
   release:
@@ -38,9 +44,13 @@ jobs:
       - name: Install build tools
         run: pip install build hatchling
 
-      - name: Set version from tag
+      - name: Set version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
           VERSION=${VERSION#v}
           echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "Building version: $VERSION"
@@ -77,6 +87,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ env.RELEASE_VERSION }}
           files: |
             release/chaosblade-python-${{ env.RELEASE_VERSION }}.tar.gz
             dist/*.whl
